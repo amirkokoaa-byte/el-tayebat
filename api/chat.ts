@@ -1,10 +1,4 @@
-import express from "express";
-import path from "path";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || "AIzaSyCYjSX9sR4TlTsKeyN66rIhUMSrX1qKhUM",
@@ -144,71 +138,54 @@ To maintain an elite, clean user experience, you must format all outputs exactly
 Before rendering the final text to the user, you must perform an internal validation step:
 - Did I mention any commercial snack, generic advice, or unpeeled vegetable? If yes, rewrite.
 - Did I enforce the mandatory footer? 
-If all checks pass, output the response.`;
+If all checks pass, output the response.
+`;
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+export default async function handler(req: any, res: any) {
+  // Add CORS headers for Vercel
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET,OPTIONS,PATCH,DELETE,POST,PUT",
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version",
+  );
 
-  app.use(express.json());
-
-  app.post("/api/chat", async (req, res) => {
-    try {
-      const { messages } = req.body;
-      
-      if (!messages || !Array.isArray(messages)) {
-        return res.status(400).json({ error: "Invalid messages array." });
-      }
-
-      const history = messages.slice(0, -1).map((m: any) => ({
-        role: m.role === "user" ? "user" : "model",
-        parts: [{ text: m.content }]
-      }));
-      
-      const latestMessage = messages[messages.length - 1];
-      
-      const contents = [
-        ...history,
-        {
-          role: "user",
-          parts: [{ text: latestMessage.content }]
-        }
-      ];
-
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        config: {
-            systemInstruction: SYSTEM_INSTRUCTION,
-            temperature: 0.0
-        },
-        contents: contents
-      });
-
-      res.json({ content: response.text });
-    } catch (error: any) {
-      console.error("Chat API Error:", error);
-      res.status(500).json({ error: "Failed to generate reply" });
-    }
-  });
-
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-}
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
-startServer();
+  try {
+    const { messages } = req.body;
+
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: "Invalid messages array." });
+    }
+
+    const contents = messages.map((msg: any) => ({
+      role: msg.role === "user" ? "user" : "model",
+      parts: [{ text: msg.content }],
+    }));
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        temperature: 0.0,
+      },
+      contents: contents,
+    });
+
+    res.status(200).json({ reply: response.text });
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    res.status(500).json({ error: "Failed to generate response" });
+  }
+}
