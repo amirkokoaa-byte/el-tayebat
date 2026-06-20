@@ -183,7 +183,7 @@ export default async function handler(req: any, res: any) {
       contents: contents,
     });
 
-    res.status(200).json({ reply: response.text });
+    res.status(200).json({ content: response.text });
   } catch (error) {
     console.error("Gemini API Error:", error);
     res.status(500).json({ error: "Failed to generate response" });
