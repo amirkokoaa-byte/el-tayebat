@@ -1,0 +1,8 @@
+{
+  "name": "Altayyebat System Expert",
+  "description": "An AI medical assistant specializing in the dietary system founded by Dr. Diyaa El-Awady (نظام الطيبات).",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
